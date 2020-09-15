@@ -1,0 +1,4 @@
+include ':app', ':libusbcamera',':opencv440',':face-detection'
+rootProject.name = "soyuanface"
+include 'opencv'
+
