@@ -8,8 +8,7 @@
 
     <uses-feature android:name="android.hardware.usb.host"/>
 
-    <uses-permission android:name="android.permission.CAMERA" />
-
+    <uses-permission android:name="android.permission.CAMERA"/>
 
     <application
             android:allowBackup="true"
@@ -18,11 +17,13 @@
             android:roundIcon="@mipmap/ic_launcher_round"
             android:supportsRtl="true"
             android:theme="@style/AppTheme">
-        <activity android:name=".view.OpencvTest" android:theme="@style/Theme.AppCompat.Light.NoActionBar"
-
-                  android:screenOrientation="landscape"
-                  android:configChanges="keyboardHidden|orientation"
-        >
+        <activity android:name=".view.FaceContrast">
+        </activity>
+        <activity
+                android:name=".view.OpencvTest"
+                android:configChanges="keyboardHidden|orientation"
+                android:screenOrientation="landscape"
+                android:theme="@style/Theme.AppCompat.Light.NoActionBar">
         </activity>
         <activity
                 android:name=".MainActivity"

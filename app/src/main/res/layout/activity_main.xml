@@ -21,4 +21,9 @@
             android:layout_height="wrap_content"
             android:text="人脸检测" />
 
+    <Button
+            android:id="@+id/face_contrast"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="人脸对比" />
 </LinearLayout>

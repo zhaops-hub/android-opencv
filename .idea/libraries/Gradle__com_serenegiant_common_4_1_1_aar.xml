@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Gradle: com.serenegiant:common:4.1.1@aar">
+    <ANNOTATIONS>
+      <root url="jar://$USER_HOME$/soft/gradle/gradle-6.6.1/caches/transforms-2/files-2.1/ae0ebe7ae25923cd010aa34266d1a789/jetified-common-4.1.1/annotations.zip!/" />
+    </ANNOTATIONS>
+    <CLASSES>
+      <root url="jar://$USER_HOME$/soft/gradle/gradle-6.6.1/caches/transforms-2/files-2.1/ae0ebe7ae25923cd010aa34266d1a789/jetified-common-4.1.1/jars/classes.jar!/" />
+      <root url="file://$USER_HOME$/soft/gradle/gradle-6.6.1/caches/transforms-2/files-2.1/ae0ebe7ae25923cd010aa34266d1a789/jetified-common-4.1.1/res" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

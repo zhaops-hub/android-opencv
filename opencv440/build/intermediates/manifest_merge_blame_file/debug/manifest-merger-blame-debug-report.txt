@@ -4,8 +4,8 @@
 4
 5    <uses-sdk
 6        android:minSdkVersion="15"
-6-->/home/zps/project/soyuan.newface/opencv440/src/main/AndroidManifest.xml
+6-->/home/zps/project/github/android-opencv/opencv440/src/main/AndroidManifest.xml
 7        android:targetSdkVersion="25" />
-7-->/home/zps/project/soyuan.newface/opencv440/src/main/AndroidManifest.xml
+7-->/home/zps/project/github/android-opencv/opencv440/src/main/AndroidManifest.xml
 8
 9</manifest>

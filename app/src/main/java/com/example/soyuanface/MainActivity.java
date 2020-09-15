@@ -12,6 +12,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.os.Bundle;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import com.example.soyuanface.view.FaceContrast;
 import com.example.soyuanface.view.OpencvTest;
 
 
@@ -36,8 +37,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         Button faceDetect = (Button) findViewById(R.id.face_detect);
+        Button faceContrast = (Button) findViewById(R.id.face_contrast);
         faceDetect.setOnClickListener(this);
-
+        faceContrast.setOnClickListener(this);
     }
 
     @Override
@@ -95,7 +97,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         case R.id.face_detect:
                             startActivity(new Intent(MainActivity.this, OpencvTest.class));
                             break;
+                        case  R.id.face_contrast:
+                            startActivity(new Intent(MainActivity.this, FaceContrast.class));
+                            break;
                         default:
+                            break;
                     }
 
                     MainActivity.this.finish();
@@ -109,6 +115,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         switch (v.getId()) {
             case R.id.face_detect:
                 currTab = R.id.face_detect;
+                break;
+            case R.id.face_contrast:
+                currTab = R.id.face_contrast;
                 break;
             default:
         }
