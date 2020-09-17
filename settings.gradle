@@ -1,4 +1,4 @@
-include ':app', ':libusbcamera',':opencv440',':face-detection'
+include ':app', ':opencv440'
 rootProject.name = "soyuanface"
 include 'opencv'
 

@@ -30,13 +30,12 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
-
-
-    sourceSets {
-        main {
-            jniLibs.srcDirs = ['src/main/jniLibs']
+    repositories {
+        flatDir {
+            dirs 'libs'
         }
     }
+
 }
 
 dependencies {
@@ -50,6 +49,10 @@ dependencies {
     implementation 'com.jakewharton:butterknife:10.2.0'
     annotationProcessor 'com.jakewharton:butterknife-compiler:10.2.0'
 
-    implementation project(':libusbcamera')
     implementation project(':opencv440')
+    implementation(name: 'libuvccamera', ext: 'aar')
+    implementation(name: 'usbCameraCommon', ext: 'aar')
+    implementation("com.serenegiant:common:1.5.20") {
+        exclude module: 'support-v4'
+    }
 }

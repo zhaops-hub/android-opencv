@@ -1,25 +1,25 @@
 -- Merging decision tree log ---
 manifest
-ADDED from /home/zps/project/github/android-opencv/opencv440/src/main/AndroidManifest.xml:2:1-4:12
-INJECTED from /home/zps/project/github/android-opencv/opencv440/src/main/AndroidManifest.xml:2:1-4:12
-INJECTED from /home/zps/project/github/android-opencv/opencv440/src/main/AndroidManifest.xml:2:1-4:12
+ADDED from D:\javaproject\android-opencv\opencv440\src\main\AndroidManifest.xml:2:1-4:12
+INJECTED from D:\javaproject\android-opencv\opencv440\src\main\AndroidManifest.xml:2:1-4:12
+INJECTED from D:\javaproject\android-opencv\opencv440\src\main\AndroidManifest.xml:2:1-4:12
 	package
-		ADDED from /home/zps/project/github/android-opencv/opencv440/src/main/AndroidManifest.xml:3:7-27
-		INJECTED from /home/zps/project/github/android-opencv/opencv440/src/main/AndroidManifest.xml
-		INJECTED from /home/zps/project/github/android-opencv/opencv440/src/main/AndroidManifest.xml
+		ADDED from D:\javaproject\android-opencv\opencv440\src\main\AndroidManifest.xml:3:7-27
+		INJECTED from D:\javaproject\android-opencv\opencv440\src\main\AndroidManifest.xml
+		INJECTED from D:\javaproject\android-opencv\opencv440\src\main\AndroidManifest.xml
 	xmlns:android
-		ADDED from /home/zps/project/github/android-opencv/opencv440/src/main/AndroidManifest.xml:2:11-69
+		ADDED from D:\javaproject\android-opencv\opencv440\src\main\AndroidManifest.xml:2:11-69
 uses-sdk
-INJECTED from /home/zps/project/github/android-opencv/opencv440/src/main/AndroidManifest.xml reason: use-sdk injection requested
-INJECTED from /home/zps/project/github/android-opencv/opencv440/src/main/AndroidManifest.xml
-INJECTED from /home/zps/project/github/android-opencv/opencv440/src/main/AndroidManifest.xml
-INJECTED from /home/zps/project/github/android-opencv/opencv440/src/main/AndroidManifest.xml
-INJECTED from /home/zps/project/github/android-opencv/opencv440/src/main/AndroidManifest.xml
+INJECTED from D:\javaproject\android-opencv\opencv440\src\main\AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from D:\javaproject\android-opencv\opencv440\src\main\AndroidManifest.xml
+INJECTED from D:\javaproject\android-opencv\opencv440\src\main\AndroidManifest.xml
+INJECTED from D:\javaproject\android-opencv\opencv440\src\main\AndroidManifest.xml
+INJECTED from D:\javaproject\android-opencv\opencv440\src\main\AndroidManifest.xml
 	android:targetSdkVersion
-		INJECTED from /home/zps/project/github/android-opencv/opencv440/src/main/AndroidManifest.xml
-		ADDED from /home/zps/project/github/android-opencv/opencv440/src/main/AndroidManifest.xml
-		INJECTED from /home/zps/project/github/android-opencv/opencv440/src/main/AndroidManifest.xml
+		INJECTED from D:\javaproject\android-opencv\opencv440\src\main\AndroidManifest.xml
+		ADDED from D:\javaproject\android-opencv\opencv440\src\main\AndroidManifest.xml
+		INJECTED from D:\javaproject\android-opencv\opencv440\src\main\AndroidManifest.xml
 	android:minSdkVersion
-		INJECTED from /home/zps/project/github/android-opencv/opencv440/src/main/AndroidManifest.xml
-		ADDED from /home/zps/project/github/android-opencv/opencv440/src/main/AndroidManifest.xml
-		INJECTED from /home/zps/project/github/android-opencv/opencv440/src/main/AndroidManifest.xml
+		INJECTED from D:\javaproject\android-opencv\opencv440\src\main\AndroidManifest.xml
+		ADDED from D:\javaproject\android-opencv\opencv440\src\main\AndroidManifest.xml
+		INJECTED from D:\javaproject\android-opencv\opencv440\src\main\AndroidManifest.xml

@@ -1,247 +1,440 @@
 package com.example.soyuanface.view;
 
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.SurfaceTexture;
 import android.hardware.usb.UsbDevice;
-import android.os.Looper;
+import android.util.Log;
 import android.view.Surface;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.*;
-import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
 import android.os.Bundle;
-import androidx.appcompat.widget.Toolbar;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import com.example.soyuanface.R;
-import com.jiangdg.usbcamera.UVCCameraHelper;
+import com.serenegiant.common.BaseActivity;
 import com.serenegiant.usb.CameraDialog;
+import com.serenegiant.usb.IFrameCallback;
 import com.serenegiant.usb.USBMonitor;
-import com.serenegiant.usb.common.AbstractUVCCameraHandler;
-import com.serenegiant.usb.widget.CameraViewInterface;
+import com.serenegiant.usb.UVCCamera;
+import com.serenegiant.usbcameracommon.UVCCameraHandler;
+import com.serenegiant.widget.CameraViewInterface;
+import org.opencv.android.Utils;
+import org.opencv.core.*;
+import org.opencv.imgproc.Imgproc;
+import org.opencv.objdetect.CascadeClassifier;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
+
 
 /**
  * @author SoYuan
  */
-public class CameraActivity extends AppCompatActivity implements CameraDialog.CameraDialogParent, CameraViewInterface.Callback {
-    private static final String TAG = "Debug";
-    @BindView(R.id.camera_view)
-    public View mTextureView;
-    @BindView(R.id.toolbar)
-    public Toolbar mToolbar;
-//    @BindView(R.id.seekbar_brightness)
-//    public SeekBar mSeekBrightness;
-//    @BindView(R.id.seekbar_contrast)
-//    public SeekBar mSeekContrast;
-//    @BindView(R.id.switch_rec_voice)
-//    public Switch mSwitchVoice;
+public class CameraActivity extends BaseActivity implements CameraDialog.CameraDialogParent {
+    /**
+     * TODO set false on release
+     */
+    private static final boolean DEBUG = true;
+    private static final String TAG = "CameraActivity";
 
+    /**
+     * 操作锁
+     */
+    private final Object mSync = new Object();
 
-    private UVCCameraHelper mCameraHelper;
+    /**
+     * set true if you want to record movie using MediaSurfaceEncoder
+     * (writing frame data into Surface camera from MediaCodec
+     * by almost same way as USBCameratest2)
+     * set false if you want to record movie using MediaVideoEncoder
+     */
+    private static final boolean USE_SURFACE_ENCODER = false;
+
+    /**
+     * preview resolution(width)
+     * if your camera does not support specific resolution and mode,
+     * {@link UVCCamera#setPreviewSize(int, int, int)} throw exception
+     */
+    private static final int PREVIEW_WIDTH = 640;
+
+    /**
+     * preview resolution(height)
+     * if your camera does not support specific resolution and mode,
+     * {@link UVCCamera#setPreviewSize(int, int, int)} throw exception
+     */
+    private static final int PREVIEW_HEIGHT = 480;
+
+    /**
+     * preview mode
+     * if your camera does not support specific resolution and mode,
+     * {@link UVCCamera#setPreviewSize(int, int, int)} throw exception
+     * 0:YUYV, other:MJPEG
+     */
+    private static final int PREVIEW_MODE = 0;
+
+    protected static final int SETTINGS_HIDE_DELAY_MS = 2500;
+
+    /**
+     * for accessing USB
+     */
+    private USBMonitor mUSBMonitor;
+
+    /**
+     * Handler to execute camera related methods sequentially on private thread
+     */
+    private UVCCameraHandler mCameraHandler;
+
+    /**
+     * for camera preview display
+     */
     private CameraViewInterface mUVCCameraView;
-    private AlertDialog mDialog;
 
-    private boolean isRequest;
-    private boolean isPreview;
+    /**
+     * for open&start / stop&close camera preview
+     */
+    @BindView(R.id.imageButton)
+    public ImageButton mCameraButton;
+    @BindView(R.id.imageView)
+    public ImageView mImageView;
+    private boolean isScaling = false;
+    private boolean isInCapturing = false;
+    private int[][] capture_solution = {{640, 480}, {800, 600}, {1024, 768}, {1280, 1024}};
+    private int mCaptureWidth = capture_solution[0][0];
+    private int mCaptureHeight = capture_solution[0][1];
 
-    private UVCCameraHelper.OnMyDevConnectListener listener = new UVCCameraHelper.OnMyDevConnectListener() {
+    private Bitmap bitmap = null;
+    private Bitmap tempBitmap = null;
+    private final Bitmap srcBitmap = Bitmap.createBitmap(PREVIEW_WIDTH, PREVIEW_HEIGHT, Bitmap.Config.RGB_565);
+
+    /**
+     * 正脸 级联分类器
+     */
+    private CascadeClassifier mFrontalFaceClassifier = null;
+    private final Size m65Size = new Size(65, 65);
+    private final Size mDefault = new Size();
+    private Rect[] mFrontalFacesArray;
+    /**
+     * event handler when click camera / capture button
+     */
+    private final View.OnClickListener mOnClickListener = new View.OnClickListener() {
+        @Override
+        public void onClick(final View view) {
+            synchronized (mSync) {
+                if ((mCameraHandler != null) && !mCameraHandler.isOpened()) {
+                    CameraDialog.showDialog(CameraActivity.this);
+                } else {
+                    mCameraHandler.close();
+                }
+            }
+        }
+    };
+
+    /**
+     * usb 回调事件
+     */
+    private final USBMonitor.OnDeviceConnectListener mOnDeviceConnectListener = new USBMonitor.OnDeviceConnectListener() {
+        @Override
+        public void onAttach(final UsbDevice device) {
+            Toast.makeText(CameraActivity.this, "USB_DEVICE_ATTACHED", Toast.LENGTH_SHORT).show();
+        }
 
         @Override
-        public void onAttachDev(UsbDevice device) {
-            // request open permission
-            if (!isRequest) {
-                isRequest = true;
-                if (mCameraHelper != null) {
-                    mCameraHelper.requestPermission(0);
+        public void onConnect(final UsbDevice device, final USBMonitor.UsbControlBlock ctrlBlock, final boolean createNew) {
+            if (DEBUG) {
+                Log.v(TAG, "onConnect:");
+            }
+            synchronized (mSync) {
+                if (mCameraHandler != null) {
+                    mCameraHandler.open(ctrlBlock);
+                    startPreview();
+                    updateItems();
                 }
             }
         }
 
         @Override
-        public void onDettachDev(UsbDevice device) {
-            // close camera
-            if (isRequest) {
-                isRequest = false;
-                mCameraHelper.closeCamera();
-                showShortMsg(device.getDeviceName() + " is out");
+        public void onDisconnect(final UsbDevice device, final USBMonitor.UsbControlBlock ctrlBlock) {
+            if (DEBUG) Log.v(TAG, "onDisconnect:");
+            synchronized (mSync) {
+                if (mCameraHandler != null) {
+                    queueEvent(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                // maybe throw java.lang.IllegalStateException: already released
+                                mCameraHandler.setPreviewCallback(null); //zhf
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                            mCameraHandler.close();
+                        }
+                    }, 0);
+                }
             }
         }
 
         @Override
-        public void onConnectDev(UsbDevice device, boolean isConnected) {
-            if (!isConnected) {
-                showShortMsg("fail to connect,please check resolution params");
-                isPreview = false;
-            } else {
-                isPreview = true;
-                showShortMsg("connecting");
-
-                // initialize seekbar
-                // need to wait UVCCamera initialize over
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            Thread.sleep(2500);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                        Looper.prepare();
-                        showShortMsg("isOpened:" + mCameraHelper.isCameraOpened());
-                        if (mCameraHelper != null && mCameraHelper.isCameraOpened()) {
-                            showShortMsg("isOpened:" + mCameraHelper.isCameraOpened());
-                        } else {
-                        }
-                        Looper.loop();
-                    }
-                }).start();
-            }
+        public void onDettach(final UsbDevice device) {
+            Toast.makeText(CameraActivity.this, "USB_DEVICE_DETACHED", Toast.LENGTH_SHORT).show();
         }
 
         @Override
-        public void onDisConnectDev(UsbDevice device) {
-            showShortMsg("disconnecting");
+        public void onCancel(final UsbDevice device) {
         }
     };
 
+    /**
+     * 预览帧回调
+     */
+    private final IFrameCallback mIFrameCallback = new IFrameCallback() {
+        @Override
+        public void onFrame(final ByteBuffer frame) {
+            frame.clear();
+            if (!isActive() || isInCapturing) {
+                return;
+            }
+            if (bitmap == null) {
+                Toast.makeText(CameraActivity.this, "错误：Bitmap为空", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            /**
+             * 这里进行opencv操作
+             * srcBitmap:源
+             * bitmap:处理后
+             */
+            synchronized (bitmap) {
+                srcBitmap.copyPixelsFromBuffer(frame);
+
+                if (bitmap.getWidth() != mCaptureWidth || bitmap.getHeight() != mCaptureHeight) {
+                    bitmap = Bitmap.createBitmap(mCaptureWidth, mCaptureHeight, Bitmap.Config.RGB_565);
+                }
+
+                Mat rgbMat = new Mat();
+                Mat grayMat = new Mat();
+                bitmap = Bitmap.createBitmap(srcBitmap.getWidth(), srcBitmap.getHeight(), Bitmap.Config.RGB_565);
+                Utils.bitmapToMat(srcBitmap, rgbMat);//convert original bitmap to Mat, R G B.
+                Imgproc.cvtColor(rgbMat, grayMat, Imgproc.COLOR_RGB2GRAY);//rgbMat to gray grayMat
+
+                /**检测算法 */
+                if (mFrontalFaceClassifier != null) {
+                    MatOfRect frontalFaces = new MatOfRect();
+
+                    mFrontalFaceClassifier.detectMultiScale(grayMat, frontalFaces, 1.1, 5, 2, m65Size, mDefault);
+                    mFrontalFacesArray = frontalFaces.toArray();
+
+                    if (mFrontalFacesArray.length > 0) {
+                        for (int i = 0; i < mFrontalFacesArray.length; i++) {
+                            Imgproc.rectangle(rgbMat, mFrontalFacesArray[i].tl(), mFrontalFacesArray[i].br(), new Scalar(0, 255, 0, 255), 3);
+                        }
+                    }
+                }
+
+
+                Utils.matToBitmap(rgbMat, bitmap); //convert mat to bitmap
+                Log.i(TAG, "procSrc2Gray sucess...");
+            }
+
+            tempBitmap = bitmap;
+            mImageView.post(mUpdateImageTask);
+        }
+    };
+
+    /**
+     * 更新界面图片事件
+     */
+    private final Runnable mUpdateImageTask = new Runnable() {
+        @Override
+        public void run() {
+            synchronized (bitmap) {
+                mImageView.setImageBitmap(tempBitmap);
+            }
+        }
+    };
+
+    /**
+     * 利用Activity.runOnUiThread(Runnable)把更新ui的代码创建在Runnable中，
+     * 然后在需要更新ui时，把这个Runnable对象传给Activity.runOnUiThread(Runnable)
+     */
+    private void updateItems() {
+        runOnUiThread(mUpdateItemsOnUITask, 100);
+    }
+
+    private final Runnable mUpdateItemsOnUITask = new Runnable() {
+        @Override
+        public void run() {
+            if (isFinishing()) {
+                return;
+            }
+            final int visible_active = isActive() ? View.VISIBLE : View.INVISIBLE;
+            mImageView.setVisibility(visible_active);
+        }
+    };
+
+    /** 手动装载openCV库文件，以保证手机无需安装OpenCV Manager */
+    static {
+        System.loadLibrary("opencv_java4");
+    }
+
     private void initView() {
-        setSupportActionBar(mToolbar);
-        // 设置亮度控件
-//        mSeekBrightness.setMax(100);
-//        mSeekBrightness.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-//            @Override
-//            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-//                if (mCameraHelper != null && mCameraHelper.isCameraOpened()) {
-//                    mCameraHelper.setModelValue(UVCCameraHelper.MODE_BRIGHTNESS, progress);
-//                }
-//            }
-//
-//            @Override
-//            public void onStartTrackingTouch(SeekBar seekBar) {
-//
-//            }
-//
-//            @Override
-//            public void onStopTrackingTouch(SeekBar seekBar) {
-//
-//            }
-//        });
-//
-//        // 设置对比度控件
-//        mSeekContrast.setMax(100);
-//        mSeekContrast.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-//            @Override
-//            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-//                if (mCameraHelper != null && mCameraHelper.isCameraOpened()) {
-//                    mCameraHelper.setModelValue(UVCCameraHelper.MODE_CONTRAST, progress);
-//                }
-//            }
-//
-//            @Override
-//            public void onStartTrackingTouch(SeekBar seekBar) {
-//
-//            }
-//
-//            @Override
-//            public void onStopTrackingTouch(SeekBar seekBar) {
-//
-//            }
-//        });
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
+                WindowManager.LayoutParams.FLAG_FULLSCREEN);
     }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        initView();
         setContentView(R.layout.activity_camera);
         ButterKnife.bind(this);
-        initView();
+        Log.v(TAG, "onCreate:");
 
-        mUVCCameraView = (CameraViewInterface) mTextureView;
-        mUVCCameraView.setCallback(this);
-        mCameraHelper = UVCCameraHelper.getInstance();
-        mCameraHelper.setDefaultFrameFormat(UVCCameraHelper.FRAME_FORMAT_MJPEG);
-        mCameraHelper.initUSBMonitor(this, mUVCCameraView, listener);
+        mCameraButton.setOnClickListener(mOnClickListener);
 
-        mCameraHelper.setOnPreviewFrameListener(new AbstractUVCCameraHandler.OnPreViewResultListener() {
-            @Override
-            public void onPreviewResult(byte[] nv21Yuv) {
-                showShortMsg("onPreviewResult: " + nv21Yuv.length);
-            }
-        });
+        mCaptureWidth = capture_solution[0][0];
+        mCaptureHeight = capture_solution[0][1];
 
+        bitmap = Bitmap.createBitmap(mCaptureWidth, mCaptureHeight, Bitmap.Config.RGB_565);
 
-//        AlertDialog.Builder builder = new AlertDialog.Builder(CameraActivity.this);
-//        View rootView = LayoutInflater.from(this).inflate(R.layout.listview_dialog, null);
-//        ListView listView = (ListView) rootView.findViewById(R.id.listview_dialog);
-//        List<UsbDevice> usbList = mCameraHelper.getUsbDeviceList();
-//        List<String> usbDevices = new ArrayList<>();
-//        for (UsbDevice usbItem : usbList) {
-//            usbDevices.add(usbItem.getDeviceName());
-//        }
-//
-//
-//        ArrayAdapter<String> adapter = new ArrayAdapter<String>(CameraActivity.this, android.R.layout.simple_list_item_1, usbDevices);
-//        if (adapter != null) {
-//            listView.setAdapter(adapter);
-//        }
-//
-//        mDialog.setView(rootView);
-//        mDialog = builder.create();
-//        mDialog.show();
+        /** usb 预览窗口 */
+        final View view = findViewById(R.id.camera_view);
+        mUVCCameraView = (CameraViewInterface) view;
+        mUVCCameraView.setAspectRatio(PREVIEW_WIDTH / (float) PREVIEW_HEIGHT);
 
+        /** 创建usb对象 */
+        synchronized (mSync) {
+            mUSBMonitor = new USBMonitor(this, mOnDeviceConnectListener);
+            mCameraHandler = UVCCameraHandler.createHandler(this, mUVCCameraView,
+                    USE_SURFACE_ENCODER ? 0 : 1, PREVIEW_WIDTH, PREVIEW_HEIGHT, PREVIEW_MODE);
+        }
+
+        /**初始化 opencv 分类器 */
+        initFrontalFace();
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-        if (mCameraHelper != null) {
-            mCameraHelper.registerUSB();
+        Log.v(TAG, "onStart:");
+        synchronized (mSync) {
+            mUSBMonitor.register();
+        }
+        if (mUVCCameraView != null) {
+            mUVCCameraView.onResume();
         }
     }
 
     @Override
     protected void onStop() {
+        Log.v(TAG, "onStop:");
+        synchronized (mSync) {
+            mCameraHandler.close();    // #close include #stopRecording and #stopPreview
+            mUSBMonitor.unregister();
+        }
+        if (mUVCCameraView != null) {
+            mUVCCameraView.onPause();
+        }
+
         super.onStop();
-        if (mCameraHelper != null) {
-            mCameraHelper.unregisterUSB();
+    }
+
+    @Override
+    protected void onDestroy() {
+        Log.v(TAG, "onDestroy:");
+        synchronized (mSync) {
+            if (mCameraHandler != null) {
+                mCameraHandler.setPreviewCallback(null);
+                mCameraHandler.release();
+                mCameraHandler = null;
+            }
+            if (mUSBMonitor != null) {
+                mUSBMonitor.destroy();
+                mUSBMonitor = null;
+            }
+        }
+
+        super.onDestroy();
+    }
+
+    /**
+     * to access from CameraDialog
+     *
+     * @return
+     */
+    @Override
+    public USBMonitor getUSBMonitor() {
+        synchronized (mSync) {
+            return mUSBMonitor;
         }
     }
+
+    @Override
+    public void onDialogResult(boolean b) {
+        if (DEBUG) {
+            Log.v(TAG, "onDialogResult:canceled=" + b);
+        }
+    }
+
 
     private void showShortMsg(String msg) {
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
     }
 
-    @Override
-    public USBMonitor getUSBMonitor() {
-        return mCameraHelper.getUSBMonitor();
+    /**
+     * 开始预览
+     */
+    private void startPreview() {
+        synchronized (mSync) {
+            if (mCameraHandler != null) {
+                final SurfaceTexture st = mUVCCameraView.getSurfaceTexture();
+                /**
+                 * 由于surfaceview由另一个线程处理，这里使用消息处理机制
+                 * 对Frame进行回调处理
+                 */
+                mCameraHandler.setPreviewCallback(mIFrameCallback);
+                mCameraHandler.startPreview(new Surface(st));
+            }
+        }
+        updateItems();
     }
 
-    @Override
-    public void onDialogResult(boolean canceled) {
-        if (canceled) {
-            showShortMsg("取消操作");
+    /**
+     * usb相机是否打开
+     *
+     * @return
+     */
+    private boolean isActive() {
+        return mCameraHandler != null && mCameraHandler.isOpened();
+    }
+
+    /**
+     * @Description 初始化正脸分类器
+     */
+    public void initFrontalFace() {
+        try {
+
+            InputStream is = getResources().openRawResource(R.raw.haarcascade_frontalface_alt);
+            File cascadeDir = getDir("cascade", Context.MODE_PRIVATE);
+            File mCascadeFile = new File(cascadeDir, "haarcascade_frontalface_alt.xml");
+            FileOutputStream os = new FileOutputStream(mCascadeFile);
+            byte[] buffer = new byte[4096];
+            int bytesRead;
+            while ((bytesRead = is.read(buffer)) != -1) {
+                os.write(buffer, 0, bytesRead);
+            }
+            is.close();
+            os.close();
+            // 加载 正脸分类器
+            mFrontalFaceClassifier = new CascadeClassifier(mCascadeFile.getAbsolutePath());
+        } catch (Exception e) {
+            Log.e(TAG, e.toString());
         }
     }
 
-    @Override
-    public void onSurfaceCreated(CameraViewInterface view, Surface surface) {
-        if (!isPreview && mCameraHelper.isCameraOpened()) {
-            mCameraHelper.startPreview(mUVCCameraView);
-            isPreview = true;
-        }
-    }
-
-    @Override
-    public void onSurfaceChanged(CameraViewInterface view, Surface surface, int width, int height) {
-
-    }
-
-    @Override
-    public void onSurfaceDestroy(CameraViewInterface view, Surface surface) {
-        if (isPreview && mCameraHelper.isCameraOpened()) {
-            mCameraHelper.stopPreview();
-            isPreview = false;
-        }
-    }
 }

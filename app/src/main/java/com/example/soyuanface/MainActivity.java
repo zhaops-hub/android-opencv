@@ -12,6 +12,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.os.Bundle;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import com.example.soyuanface.view.CameraActivity;
 import com.example.soyuanface.view.FaceContrast;
 import com.example.soyuanface.view.OpencvTest;
 
@@ -38,8 +39,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         setContentView(R.layout.activity_main);
         Button faceDetect = (Button) findViewById(R.id.face_detect);
         Button faceContrast = (Button) findViewById(R.id.face_contrast);
+        Button btnUsb = (Button)findViewById(R.id.usb);
         faceDetect.setOnClickListener(this);
         faceContrast.setOnClickListener(this);
+        btnUsb.setOnClickListener(this);
     }
 
     @Override
@@ -97,8 +100,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         case R.id.face_detect:
                             startActivity(new Intent(MainActivity.this, OpencvTest.class));
                             break;
-                        case  R.id.face_contrast:
+                        case R.id.face_contrast:
                             startActivity(new Intent(MainActivity.this, FaceContrast.class));
+                            break;
+                        case R.id.usb:
+                            startActivity(new Intent(MainActivity.this, CameraActivity.class));
                             break;
                         default:
                             break;
@@ -118,6 +124,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
             case R.id.face_contrast:
                 currTab = R.id.face_contrast;
+                break;
+            case R.id.usb:
+                currTab = R.id.usb;
                 break;
             default:
         }
