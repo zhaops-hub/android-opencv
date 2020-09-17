@@ -12,10 +12,7 @@ import android.os.Bundle;
 import com.example.soyuanface.R;
 import com.example.soyuanface.common.OpencvHelper;
 import com.example.soyuanface.model.ImageFaceModel;
-import org.opencv.android.OpenCVLoader;
-import org.opencv.android.Utils;
 import org.opencv.core.*;
-import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.CascadeClassifier;
 
 import java.io.File;
@@ -29,7 +26,7 @@ public class FaceContrast extends AppCompatActivity implements View.OnClickListe
     private ImageView mIvGrayFace1;
     private ImageView mIvGrayFace2;
     private Mat mGrayFace1, mGrayFace2;
-    private Button btn_gray_face, btn_contras_face;
+    private Button btnGrayFace, btnContrasFace;
     private CascadeClassifier classifier;
 
     /** 手动装载openCV库文件，以保证手机无需安装OpenCV Manager */
@@ -44,10 +41,10 @@ public class FaceContrast extends AppCompatActivity implements View.OnClickListe
 
         mIvGrayFace1 = findViewById(R.id.iv_face_1);
         mIvGrayFace2 = findViewById(R.id.iv_face_2);
-        btn_gray_face = findViewById(R.id.btn_gray_face);
-        btn_contras_face = findViewById(R.id.btn_contras_face);
-        btn_gray_face.setOnClickListener(this);
-        btn_contras_face.setOnClickListener(this);
+        btnGrayFace = findViewById(R.id.btn_gray_face);
+        btnContrasFace = findViewById(R.id.btn_contras_face);
+        btnGrayFace.setOnClickListener(this);
+        btnContrasFace.setOnClickListener(this);
         initClassifier();
     }
 

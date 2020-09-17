@@ -82,7 +82,7 @@ public class CameraActivity extends BaseActivity implements CameraDialog.CameraD
     /**
      * for accessing USB
      */
-    private USBMonitor mUSBMonitor;
+    private USBMonitor usbMonitor;
 
     /**
      * Handler to execute camera related methods sequentially on private thread
@@ -92,7 +92,7 @@ public class CameraActivity extends BaseActivity implements CameraDialog.CameraD
     /**
      * for camera preview display
      */
-    private CameraViewInterface mUVCCameraView;
+    private CameraViewInterface cameraViewInterface;
 
     /**
      * for open&start / stop&close camera preview
@@ -103,9 +103,9 @@ public class CameraActivity extends BaseActivity implements CameraDialog.CameraD
     public ImageView mImageView;
     private boolean isScaling = false;
     private boolean isInCapturing = false;
-    private int[][] capture_solution = {{640, 480}, {800, 600}, {1024, 768}, {1280, 1024}};
-    private int mCaptureWidth = capture_solution[0][0];
-    private int mCaptureHeight = capture_solution[0][1];
+    private int[][] captureSolution = {{640, 480}, {800, 600}, {1024, 768}, {1280, 1024}};
+    private int mCaptureWidth = captureSolution[0][0];
+    private int mCaptureHeight = captureSolution[0][1];
 
     private Bitmap bitmap = null;
     private Bitmap tempBitmap = null;
@@ -159,7 +159,9 @@ public class CameraActivity extends BaseActivity implements CameraDialog.CameraD
 
         @Override
         public void onDisconnect(final UsbDevice device, final USBMonitor.UsbControlBlock ctrlBlock) {
-            if (DEBUG) Log.v(TAG, "onDisconnect:");
+            if (DEBUG) {
+                Log.v(TAG, "onDisconnect:");
+            }
             synchronized (mSync) {
                 if (mCameraHandler != null) {
                     queueEvent(new Runnable() {
@@ -283,8 +285,8 @@ public class CameraActivity extends BaseActivity implements CameraDialog.CameraD
     private void initView() {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         requestWindowFeature(Window.FEATURE_NO_TITLE);
-        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
-                WindowManager.LayoutParams.FLAG_FULLSCREEN);
+
+        // 设置全屏没有写
     }
 
     @Override
@@ -297,20 +299,20 @@ public class CameraActivity extends BaseActivity implements CameraDialog.CameraD
 
         mCameraButton.setOnClickListener(mOnClickListener);
 
-        mCaptureWidth = capture_solution[0][0];
-        mCaptureHeight = capture_solution[0][1];
+        mCaptureWidth = captureSolution[0][0];
+        mCaptureHeight = captureSolution[0][1];
 
         bitmap = Bitmap.createBitmap(mCaptureWidth, mCaptureHeight, Bitmap.Config.RGB_565);
 
         /** usb 预览窗口 */
         final View view = findViewById(R.id.camera_view);
-        mUVCCameraView = (CameraViewInterface) view;
-        mUVCCameraView.setAspectRatio(PREVIEW_WIDTH / (float) PREVIEW_HEIGHT);
+        cameraViewInterface = (CameraViewInterface) view;
+        cameraViewInterface.setAspectRatio(PREVIEW_WIDTH / (float) PREVIEW_HEIGHT);
 
         /** 创建usb对象 */
         synchronized (mSync) {
-            mUSBMonitor = new USBMonitor(this, mOnDeviceConnectListener);
-            mCameraHandler = UVCCameraHandler.createHandler(this, mUVCCameraView,
+            usbMonitor = new USBMonitor(this, mOnDeviceConnectListener);
+            mCameraHandler = UVCCameraHandler.createHandler(this, cameraViewInterface,
                     USE_SURFACE_ENCODER ? 0 : 1, PREVIEW_WIDTH, PREVIEW_HEIGHT, PREVIEW_MODE);
         }
 
@@ -323,10 +325,10 @@ public class CameraActivity extends BaseActivity implements CameraDialog.CameraD
         super.onStart();
         Log.v(TAG, "onStart:");
         synchronized (mSync) {
-            mUSBMonitor.register();
+            usbMonitor.register();
         }
-        if (mUVCCameraView != null) {
-            mUVCCameraView.onResume();
+        if (cameraViewInterface != null) {
+            cameraViewInterface.onResume();
         }
     }
 
@@ -335,10 +337,10 @@ public class CameraActivity extends BaseActivity implements CameraDialog.CameraD
         Log.v(TAG, "onStop:");
         synchronized (mSync) {
             mCameraHandler.close();    // #close include #stopRecording and #stopPreview
-            mUSBMonitor.unregister();
+            usbMonitor.unregister();
         }
-        if (mUVCCameraView != null) {
-            mUVCCameraView.onPause();
+        if (cameraViewInterface != null) {
+            cameraViewInterface.onPause();
         }
 
         super.onStop();
@@ -353,9 +355,9 @@ public class CameraActivity extends BaseActivity implements CameraDialog.CameraD
                 mCameraHandler.release();
                 mCameraHandler = null;
             }
-            if (mUSBMonitor != null) {
-                mUSBMonitor.destroy();
-                mUSBMonitor = null;
+            if (usbMonitor != null) {
+                usbMonitor.destroy();
+                usbMonitor = null;
             }
         }
 
@@ -370,7 +372,7 @@ public class CameraActivity extends BaseActivity implements CameraDialog.CameraD
     @Override
     public USBMonitor getUSBMonitor() {
         synchronized (mSync) {
-            return mUSBMonitor;
+            return usbMonitor;
         }
     }
 
@@ -392,7 +394,7 @@ public class CameraActivity extends BaseActivity implements CameraDialog.CameraD
     private void startPreview() {
         synchronized (mSync) {
             if (mCameraHandler != null) {
-                final SurfaceTexture st = mUVCCameraView.getSurfaceTexture();
+                final SurfaceTexture st = cameraViewInterface.getSurfaceTexture();
                 /**
                  * 由于surfaceview由另一个线程处理，这里使用消息处理机制
                  * 对Frame进行回调处理

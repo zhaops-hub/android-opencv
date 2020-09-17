@@ -24,6 +24,9 @@ import java.util.List;
  * @author SoYuan
  */
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
+    /**
+     * 申请的权限
+     */
     private static final String[] REQUIRED_PERMISSION_LIST = new String[]{
             Manifest.permission.WRITE_EXTERNAL_STORAGE,
             Manifest.permission.RECORD_AUDIO,
